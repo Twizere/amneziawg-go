@@ -196,7 +196,6 @@ func CreateTUN(name string, mtu int) (Device, error) {
 	}
 
 	tun := NativeTun{tunFile: tunFile}
-	var assignedName string
 	tun.operateOnFd(func(fd uintptr) {
 		assignedName, err = tunName(fd)
 	})
