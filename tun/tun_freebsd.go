@@ -170,9 +170,29 @@ func CreateTUN(name string, mtu int) (Device, error) {
 		return nil, fmt.Errorf("interface %s already exists", name)
 	}
 
-	tunFile, err := os.OpenFile("/dev/tun", unix.O_RDWR|unix.O_CLOEXEC, 0)
+	// Try to open specific tun devices starting from tun10 to avoid OpenVPN conflicts
+	var tunFile *os.File
+	var err error
+	var assignedName string
+	
+	// Start from tun10 and go up to avoid conflicts with OpenVPN (typically uses tun0-tun9)
+	for ifIndex := 10; ifIndex < 256; ifIndex++ {
+		tunFile, err = os.OpenFile(fmt.Sprintf("/dev/tun%d", ifIndex), unix.O_RDWR|unix.O_CLOEXEC, 0)
+		if err == nil {
+			break
+		}
+		if !errors.Is(err, syscall.EBUSY) && !errors.Is(err, syscall.ENOENT) {
+			// If it's not busy or doesn't exist, it's probably a real error
+			break
+		}
+	}
+	
+	// Fallback to original behavior if specific assignment fails
 	if err != nil {
-		return nil, err
+		tunFile, err = os.OpenFile("/dev/tun", unix.O_RDWR|unix.O_CLOEXEC, 0)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	tun := NativeTun{tunFile: tunFile}
